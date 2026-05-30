@@ -33,7 +33,7 @@ data class TutorPendingUiState(
 
 data class TutorApprovedUiState(
     val isLoading: Boolean              = true,
-    val certs: List<TutorApprovedCert> = emptyList(),
+    val certs: List<Certificate>        = emptyList(),
     val searchQuery: String             = "",
     val error: String?                  = null,
     val isRefreshing: Boolean           = false,

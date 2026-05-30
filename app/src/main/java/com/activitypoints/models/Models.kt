@@ -73,6 +73,7 @@ data class Certificate(
     val uploadedAt: String? = null,
     val rejectionReason: String? = null,
     val remarks: String? = null,
+    val student: Student? = null,
 )
 
 // ── Category ───────────────────────────────────────────────────────────────────
@@ -110,11 +111,20 @@ data class TutorStudent(
     val name: String = "",
     val registerNumber: String = "",
     val email: String = "",
-    val batch: String? = null,
+    val batch: BatchBranch? = null,
+    val branch: BatchBranch? = null,
     val isLateralEntry: Boolean = false,
     val photoUrl: String? = null,
-    val totalApprovedPoints: Int = 0,
+    val totalPoints: Int = 0,
     val passThreshold: Int = 60,
+) {
+    // Convenience so screens don't need to change
+    val totalApprovedPoints: Int get() = totalPoints
+}
+
+data class BatchBranch(
+    @SerializedName("_id") val id: String = "",
+    val name: String = "",
 )
 
 data class TutorPendingCert(
@@ -142,6 +152,20 @@ data class TutorApprovedCert(
     val fileUrl: String? = null,
     val eventDate: String? = null,
     val student: Student? = null,
+)
+
+// ── API Response Wrappers ──────────────────────────────────────────────────────
+
+data class CertificatesResponse(
+    val certificates: List<Certificate> = emptyList(),
+)
+
+data class CategoriesResponse(
+    val categories: List<Category> = emptyList(),
+)
+
+data class StudentsResponse(
+    val students: List<TutorStudent> = emptyList(),
 )
 
 // ── Upload ─────────────────────────────────────────────────────────────────────

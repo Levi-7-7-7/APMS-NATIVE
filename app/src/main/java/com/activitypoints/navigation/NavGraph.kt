@@ -1,8 +1,15 @@
 package com.activitypoints.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -46,11 +53,34 @@ fun AppNavGraph(
 ) {
     val authState by authViewModel.authState.collectAsState()
 
+    // While token is being validated, show a centered spinner — no flash to login
+    if (authState is AuthState.Loading) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+        }
+        return
+    }
+
     val startDestination = when (authState) {
-        is AuthState.Loading  -> Routes.UNIFIED_LOGIN   // will show splash
-        is AuthState.Student  -> Routes.STUDENT_HOME
-        is AuthState.Tutor    -> Routes.TUTOR_HOME
-        is AuthState.LoggedOut -> Routes.UNIFIED_LOGIN
+        is AuthState.Student   -> Routes.STUDENT_HOME
+        is AuthState.Tutor     -> Routes.TUTOR_HOME
+        else                   -> Routes.UNIFIED_LOGIN
+    }
+
+    // Once auth resolves, navigate away from the start destination if needed
+    LaunchedEffect(authState) {
+        when (authState) {
+            is AuthState.Student  -> navController.navigate(Routes.STUDENT_HOME) {
+                popUpTo(0) { inclusive = true }
+            }
+            is AuthState.Tutor    -> navController.navigate(Routes.TUTOR_HOME) {
+                popUpTo(0) { inclusive = true }
+            }
+            is AuthState.LoggedOut -> navController.navigate(Routes.UNIFIED_LOGIN) {
+                popUpTo(0) { inclusive = true }
+            }
+            else -> Unit
+        }
     }
 
     NavHost(

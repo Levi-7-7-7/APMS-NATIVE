@@ -35,8 +35,12 @@ class CertificateRepositoryImpl @Inject constructor(
     private val studentApi: StudentApi,
 ) : CertificateRepository {
 
-    override suspend fun getMyCertificates() =
-        safeApiCall { studentApi.getMyCertificates() }
+    override suspend fun getMyCertificates(): NetworkResult<List<Certificate>> =
+        when (val result = safeApiCall { studentApi.getMyCertificates() }) {
+            is NetworkResult.Success -> NetworkResult.Success(result.data.certificates)
+            is NetworkResult.Error   -> result
+            is NetworkResult.Loading -> result
+        }
 
     override suspend fun deleteCertificate(id: String) =
         safeApiCall { studentApi.deleteCertificate(id) }
@@ -72,6 +76,10 @@ class CertificateRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun getCategories() =
-        safeApiCall { studentApi.getCategories() }
+    override suspend fun getCategories(): NetworkResult<List<Category>> =
+        when (val result = safeApiCall { studentApi.getCategories() }) {
+            is NetworkResult.Success -> NetworkResult.Success(result.data.categories)
+            is NetworkResult.Error   -> result
+            is NetworkResult.Loading -> result
+        }
 }

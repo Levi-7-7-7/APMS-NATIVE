@@ -39,7 +39,7 @@ interface StudentApi {
 
     // Certificates
     @GET("certificates/my")
-    suspend fun getMyCertificates(): Response<List<Certificate>>
+    suspend fun getMyCertificates(): Response<CertificatesResponse>
 
     @DELETE("certificates/{id}")
     suspend fun deleteCertificate(@Path("id") id: String): Response<Unit>
@@ -58,7 +58,7 @@ interface StudentApi {
 
     // Categories
     @GET("categories")
-    suspend fun getCategories(): Response<List<Category>>
+    suspend fun getCategories(): Response<CategoriesResponse>
 
     // FCM
     @POST("students/fcm-token")
@@ -82,33 +82,33 @@ interface TutorApi {
     suspend fun getMe(): Response<Tutor>
 
     @Multipart
-    @PATCH("tutors/me/photo")
+    @PATCH("tutors/profile-photo")
     suspend fun uploadPhoto(@Part photo: MultipartBody.Part): Response<Tutor>
 
     // Students
     @GET("tutors/students")
-    suspend fun getStudents(): Response<List<TutorStudent>>
+    suspend fun getStudents(): Response<StudentsResponse>
 
     @GET("tutors/students/{id}")
     suspend fun getStudentDetails(@Path("id") id: String): Response<Student>
 
     @GET("tutors/students/{id}/certificates")
-    suspend fun getStudentCertificates(@Path("id") id: String): Response<List<Certificate>>
+    suspend fun getStudentCertificates(@Path("id") id: String): Response<CertificatesResponse>
 
     // Pending / Approved
-    @GET("tutors/pending")
+    @GET("tutors/certificates/pending")
     suspend fun getPendingCertificates(): Response<List<TutorPendingCert>>
 
-    @GET("tutors/approved")
-    suspend fun getApprovedCertificates(): Response<List<TutorApprovedCert>>
+    @GET("tutors/certificates")
+    suspend fun getApprovedCertificates(): Response<CertificatesResponse>
 
-    @PATCH("tutors/certificates/{id}/approve")
+    @POST("tutors/certificates/{id}/approve")
     suspend fun approveCertificate(
         @Path("id") id: String,
         @Body body: Map<String, Int>,
     ): Response<Unit>
 
-    @PATCH("tutors/certificates/{id}/reject")
+    @POST("tutors/certificates/{id}/reject")
     suspend fun rejectCertificate(
         @Path("id") id: String,
         @Body body: Map<String, String>,
@@ -116,7 +116,7 @@ interface TutorApi {
 
     // CSV Upload
     @Multipart
-    @POST("tutors/upload-csv")
+    @POST("tutors/students/upload")
     suspend fun uploadCsv(@Part file: MultipartBody.Part): Response<Unit>
 
     // FCM

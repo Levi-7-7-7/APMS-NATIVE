@@ -15,7 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.activitypoints.models.TutorApprovedCert
+import com.activitypoints.models.Certificate
 import com.activitypoints.models.TutorPendingCert
 import com.activitypoints.models.TutorStudent
 import com.activitypoints.ui.components.*
@@ -271,7 +271,7 @@ fun TutorApprovedScreen(tutorViewModel: TutorViewModel) {
 }
 
 @Composable
-private fun ApprovedCertCard(cert: TutorApprovedCert) {
+private fun ApprovedCertCard(cert: Certificate) {
     Card(Modifier.fillMaxWidth()) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {

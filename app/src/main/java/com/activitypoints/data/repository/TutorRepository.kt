@@ -16,7 +16,7 @@ interface TutorRepository {
     suspend fun getStudentDetails(id: String): NetworkResult<Student>
     suspend fun getStudentCertificates(id: String): NetworkResult<List<Certificate>>
     suspend fun getPendingCertificates(): NetworkResult<List<TutorPendingCert>>
-    suspend fun getApprovedCertificates(): NetworkResult<List<TutorApprovedCert>>
+    suspend fun getApprovedCertificates(): NetworkResult<List<Certificate>>
     suspend fun approveCertificate(id: String, points: Int): NetworkResult<Unit>
     suspend fun rejectCertificate(id: String, reason: String): NetworkResult<Unit>
     suspend fun uploadCsv(file: File): NetworkResult<Unit>
@@ -30,20 +30,32 @@ class TutorRepositoryImpl @Inject constructor(
     private val tutorApi: TutorApi,
 ) : TutorRepository {
 
-    override suspend fun getStudents() =
-        safeApiCall { tutorApi.getStudents() }
+    override suspend fun getStudents(): NetworkResult<List<TutorStudent>> =
+        when (val result = safeApiCall { tutorApi.getStudents() }) {
+            is NetworkResult.Success -> NetworkResult.Success(result.data.students)
+            is NetworkResult.Error   -> result
+            is NetworkResult.Loading -> result
+        }
 
     override suspend fun getStudentDetails(id: String) =
         safeApiCall { tutorApi.getStudentDetails(id) }
 
-    override suspend fun getStudentCertificates(id: String) =
-        safeApiCall { tutorApi.getStudentCertificates(id) }
+    override suspend fun getStudentCertificates(id: String): NetworkResult<List<Certificate>> =
+        when (val result = safeApiCall { tutorApi.getStudentCertificates(id) }) {
+            is NetworkResult.Success -> NetworkResult.Success(result.data.certificates)
+            is NetworkResult.Error   -> result
+            is NetworkResult.Loading -> result
+        }
 
     override suspend fun getPendingCertificates() =
         safeApiCall { tutorApi.getPendingCertificates() }
 
-    override suspend fun getApprovedCertificates() =
-        safeApiCall { tutorApi.getApprovedCertificates() }
+    override suspend fun getApprovedCertificates(): NetworkResult<List<Certificate>> =
+        when (val result = safeApiCall { tutorApi.getApprovedCertificates() }) {
+            is NetworkResult.Success -> NetworkResult.Success(result.data.certificates)
+            is NetworkResult.Error   -> result
+            is NetworkResult.Loading -> result
+        }
 
     override suspend fun approveCertificate(id: String, points: Int) =
         safeApiCall { tutorApi.approveCertificate(id, mapOf("pointsAwarded" to points)) }
