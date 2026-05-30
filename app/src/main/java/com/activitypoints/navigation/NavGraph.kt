@@ -1,0 +1,134 @@
+package com.activitypoints.navigation
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.activitypoints.ui.screens.*
+import com.activitypoints.viewmodel.AuthState
+import com.activitypoints.viewmodel.AuthViewModel
+
+// ── Route constants ────────────────────────────────────────────────────────────
+
+object Routes {
+    // Auth
+    const val UNIFIED_LOGIN      = "unified_login"
+    const val VERIFY_OTP         = "verify_otp/{registerNumber}"
+    const val FORGOT_PASSWORD    = "forgot_password"
+    const val RESET_PASSWORD     = "reset_password/{registerNumber}"
+    const val TUTOR_FORGOT_PW    = "tutor_forgot_password"
+
+    // Student
+    const val STUDENT_HOME       = "student_home"
+    const val STUDENT_PROFILE    = "student_profile"
+
+    // Tutor
+    const val TUTOR_HOME             = "tutor_home"
+    const val TUTOR_PROFILE          = "tutor_profile"
+    const val TUTOR_STUDENT_DETAILS  = "tutor_student_details/{studentId}"
+
+    // Helper builders
+    fun verifyOtp(registerNumber: String) = "verify_otp/$registerNumber"
+    fun resetPassword(registerNumber: String) = "reset_password/$registerNumber"
+    fun studentDetail(studentId: String) = "tutor_student_details/$studentId"
+}
+
+// ── Root NavGraph ──────────────────────────────────────────────────────────────
+
+@Composable
+fun AppNavGraph(
+    navController: NavHostController = rememberNavController(),
+    authViewModel: AuthViewModel = hiltViewModel(),
+) {
+    val authState by authViewModel.authState.collectAsState()
+
+    val startDestination = when (authState) {
+        is AuthState.Loading  -> Routes.UNIFIED_LOGIN   // will show splash
+        is AuthState.Student  -> Routes.STUDENT_HOME
+        is AuthState.Tutor    -> Routes.TUTOR_HOME
+        is AuthState.LoggedOut -> Routes.UNIFIED_LOGIN
+    }
+
+    NavHost(
+        navController    = navController,
+        startDestination = startDestination,
+    ) {
+        // ── Auth screens ───────────────────────────────────────────────────────
+
+        composable(Routes.UNIFIED_LOGIN) {
+            UnifiedLoginScreen(
+                authViewModel = authViewModel,
+                navController = navController,
+            )
+        }
+
+        composable(Routes.VERIFY_OTP) { backStack ->
+            val registerNumber = backStack.arguments?.getString("registerNumber") ?: ""
+            VerifyOtpScreen(
+                registerNumber = registerNumber,
+                navController  = navController,
+                authViewModel  = authViewModel,
+            )
+        }
+
+        composable(Routes.FORGOT_PASSWORD) {
+            ForgotPasswordScreen(navController = navController)
+        }
+
+        composable(Routes.RESET_PASSWORD) { backStack ->
+            val registerNumber = backStack.arguments?.getString("registerNumber") ?: ""
+            ResetPasswordScreen(
+                registerNumber = registerNumber,
+                navController  = navController,
+            )
+        }
+
+        composable(Routes.TUTOR_FORGOT_PW) {
+            TutorForgotPasswordScreen(navController = navController)
+        }
+
+        // ── Student app ────────────────────────────────────────────────────────
+
+        composable(Routes.STUDENT_HOME) {
+            StudentHomeScreen(
+                authViewModel = authViewModel,
+                navController = navController,
+            )
+        }
+
+        composable(Routes.STUDENT_PROFILE) {
+            ProfileScreen(
+                authViewModel = authViewModel,
+                navController = navController,
+            )
+        }
+
+        // ── Tutor app ──────────────────────────────────────────────────────────
+
+        composable(Routes.TUTOR_HOME) {
+            TutorHomeScreen(
+                authViewModel = authViewModel,
+                navController = navController,
+            )
+        }
+
+        composable(Routes.TUTOR_PROFILE) {
+            TutorProfileScreen(
+                authViewModel = authViewModel,
+                navController = navController,
+            )
+        }
+
+        composable(Routes.TUTOR_STUDENT_DETAILS) { backStack ->
+            val studentId = backStack.arguments?.getString("studentId") ?: ""
+            TutorStudentDetailsScreen(
+                studentId     = studentId,
+                navController = navController,
+            )
+        }
+    }
+}
