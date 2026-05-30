@@ -21,6 +21,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.activitypoints.navigation.Routes
 import com.activitypoints.viewmodel.ForgotPasswordViewModel
+import com.activitypoints.viewmodel.AuthViewModel
 
 // ══════════════════════════════════════════════════════════════════════════════
 // STUDENT FORGOT PASSWORD

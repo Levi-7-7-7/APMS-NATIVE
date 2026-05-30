@@ -29,6 +29,7 @@ import com.activitypoints.ui.components.InitialsAvatar
 import com.activitypoints.utils.ImageCompressor
 import com.activitypoints.viewmodel.AuthState
 import com.activitypoints.viewmodel.AuthViewModel
+import com.activitypoints.viewmodel.ProfileViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

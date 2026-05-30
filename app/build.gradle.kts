@@ -65,13 +65,20 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
 
+
+    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("androidx.core:core-splashscreen:1.0.1")
+
+
+
     // Compose BOM — pins all Compose versions together
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    implementation(libs.androidx.compose.material.icons.extended)
+    implementation("androidx.compose.material:material-icons-core")
+    implementation("androidx.compose.material:material-icons-extended")
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     // Navigation

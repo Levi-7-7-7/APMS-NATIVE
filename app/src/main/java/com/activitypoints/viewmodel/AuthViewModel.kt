@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import com.activitypoints.viewmodel.AuthViewModel
 // ── UI state ───────────────────────────────────────────────────────────────────
 
 sealed interface AuthState {

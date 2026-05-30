@@ -48,13 +48,15 @@ fun TutorProfileScreen(
         }
     }
 
+    val context = LocalContext.current
+
     val photoLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let { tutorProfileViewModel.uploadPhoto(it, LocalContext.current) }
+        uri?.let { tutorProfileViewModel.uploadPhoto(it, context) }
     }
 
-    val context = LocalContext.current
+
 
     Scaffold(
         topBar = {

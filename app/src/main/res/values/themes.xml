@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Base theme - Compose handles all Material 3 theming dynamically -->
+
     <style name="Theme.ActivityPoints" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@android:color/white</item>
         <item name="android:windowSoftInputMode">adjustResize</item>
-        <item name="android:enforceNavigationBarContrast" tools:targetApi="q">false</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
     </style>
+
 </resources>
