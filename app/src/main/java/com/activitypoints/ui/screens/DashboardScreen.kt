@@ -42,6 +42,12 @@ fun DashboardScreen(
     val firstName      = displayName.split(" ").firstOrNull() ?: displayName
     val photoUrl       = studentProfile?.photoUrl
 
+    // Photo viewer state — opened when user taps the avatar (if a photo exists)
+    var showPhotoViewer by remember { mutableStateOf(false) }
+    if (showPhotoViewer && photoUrl != null) {
+        PhotoViewerDialog(photoUrl = photoUrl, onDismiss = { showPhotoViewer = false })
+    }
+
     PullToRefreshBox(
         isRefreshing = uiState.isRefreshing,
         onRefresh    = { studentViewModel.loadAll(isRefresh = true) },
@@ -63,12 +69,16 @@ fun DashboardScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        // Tappable avatar
+                        // Tappable avatar — tap opens photo viewer if photo exists,
+                        // otherwise navigates to profile (same as RN app)
                         Box(
                             modifier = Modifier
                                 .size(48.dp)
                                 .clip(CircleShape)
-                                .clickable { onNavigateToProfile() },
+                                .clickable {
+                                    if (photoUrl != null) showPhotoViewer = true
+                                    else onNavigateToProfile()
+                                },
                         ) {
                             if (photoUrl != null) {
                                 AsyncImage(

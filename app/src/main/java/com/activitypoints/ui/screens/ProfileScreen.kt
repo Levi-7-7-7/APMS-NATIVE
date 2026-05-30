@@ -3,6 +3,7 @@ package com.activitypoints.ui.screens
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -23,6 +24,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.activitypoints.models.Student
 import com.activitypoints.ui.components.InitialsAvatar
+import com.activitypoints.ui.components.PhotoViewerDialog
 import com.activitypoints.viewmodel.AuthState
 import com.activitypoints.viewmodel.AuthViewModel
 import com.activitypoints.viewmodel.ProfileViewModel
@@ -39,13 +41,22 @@ fun ProfileScreen(
     val context   = LocalContext.current
     val snackbar  = remember { SnackbarHostState() }
 
+    // Photo viewer state
+    var showPhotoViewer by remember { mutableStateOf(false) }
+    if (showPhotoViewer && student?.photoUrl != null) {
+        PhotoViewerDialog(
+            photoUrl  = student.photoUrl,
+            onDismiss = { showPhotoViewer = false },
+        )
+    }
+
     LaunchedEffect(uiState.error) {
         uiState.error?.let { snackbar.showSnackbar(it) }
     }
     LaunchedEffect(uiState.updatedStudent) {
         uiState.updatedStudent?.let {
             authViewModel.refreshStudentProfile(it)
-            snackbar.showSnackbar("Profile updated!")
+            snackbar.showSnackbar("Photo updated!")
             profileViewModel.clearResult()
         }
     }
@@ -83,17 +94,30 @@ fun ProfileScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // ── Avatar ─────────────────────────────────────────────────────────
+            // Tap the photo to view it fullscreen; tap the camera button to change it
             Box(contentAlignment = Alignment.BottomEnd) {
-                if (student?.photoUrl != null) {
-                    AsyncImage(
-                        model              = student.photoUrl,
-                        contentDescription = "Profile photo",
-                        modifier           = Modifier.size(100.dp).clip(CircleShape),
-                        contentScale       = ContentScale.Crop,
-                    )
-                } else {
-                    InitialsAvatar(name = student?.name ?: "?", size = 100)
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(CircleShape)
+                        // Tap opens full-screen viewer if a photo exists
+                        .clickable(enabled = student?.photoUrl != null) {
+                            showPhotoViewer = true
+                        },
+                ) {
+                    if (student?.photoUrl != null) {
+                        AsyncImage(
+                            model              = student.photoUrl,
+                            contentDescription = "Profile photo",
+                            modifier           = Modifier.fillMaxSize(),
+                            contentScale       = ContentScale.Crop,
+                        )
+                    } else {
+                        InitialsAvatar(name = student?.name ?: "?", size = 100)
+                    }
                 }
+
+                // Camera FAB — always visible to allow changing the photo
                 SmallFloatingActionButton(
                     onClick        = { photoLauncher.launch("image/*") },
                     containerColor = MaterialTheme.colorScheme.primary,
@@ -109,8 +133,8 @@ fun ProfileScreen(
 
             Spacer(Modifier.height(12.dp))
             Text(
-                text      = student?.name ?: "",
-                style     = MaterialTheme.typography.titleLarge,
+                text       = student?.name ?: "",
+                style      = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
             )
             Text(
@@ -118,7 +142,6 @@ fun ProfileScreen(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            // branchName replaces the old `department` field
             student?.branchName?.let {
                 Text(
                     text  = it,
@@ -130,31 +153,6 @@ fun ProfileScreen(
 
             // ── Info card ──────────────────────────────────────────────────────
             ProfileInfoCard(student)
-
-            Spacer(Modifier.height(16.dp))
-
-            // ── Edit phone ─────────────────────────────────────────────────────
-            var phone by remember(student?.phone) { mutableStateOf(student?.phone ?: "") }
-            OutlinedTextField(
-                value         = phone,
-                onValueChange = { phone = it },
-                label         = { Text("Phone Number") },
-                leadingIcon   = { Icon(Icons.Outlined.Phone, null) },
-                singleLine    = true,
-                modifier      = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.height(12.dp))
-            Button(
-                onClick  = { profileViewModel.updateStudentPhone(phone) },
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-                enabled  = !uiState.isUpdating,
-            ) {
-                if (uiState.isUpdating) {
-                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                } else {
-                    Text("Save Changes", fontWeight = FontWeight.SemiBold)
-                }
-            }
         }
     }
 }
@@ -166,15 +164,12 @@ private fun ProfileInfoCard(student: Student?) {
             modifier            = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            ProfileRow(Icons.Outlined.Email,              "Email",        student?.email)
-            // `branchName` replaces the old `department` / `branch: String` field
-            ProfileRow(Icons.Outlined.Apartment,          "Branch",       student?.branchName)
-            // `batchName` replaces the old `batch: String` field
-            ProfileRow(Icons.Outlined.CalendarViewMonth,  "Batch",        student?.batchName)
-            ProfileRow(Icons.Outlined.School,             "Semester",     student?.semester)
-            ProfileRow(Icons.Outlined.Phone,              "Phone",        student?.phone)
+            ProfileRow(Icons.Outlined.Email,                       "Email",         student?.email)
+            ProfileRow(Icons.Outlined.Apartment,                   "Branch",        student?.branchName)
+            ProfileRow(Icons.Outlined.CalendarViewMonth,           "Batch",         student?.batchName)
+            ProfileRow(Icons.Outlined.School,                      "Semester",      student?.semester)
             if (student?.isLateralEntry == true) {
-                ProfileRow(Icons.Outlined.TransferWithinAStation, "Lateral Entry", "Yes")
+                ProfileRow(Icons.Outlined.TransferWithinAStation,  "Lateral Entry", "Yes")
             }
         }
     }
