@@ -14,7 +14,7 @@ import javax.inject.Singleton
 interface TutorRepository {
     suspend fun getStudents(): NetworkResult<List<TutorStudent>>
     suspend fun getStudentDetails(id: String): NetworkResult<Student>
-    suspend fun getStudentCertificates(id: String): NetworkResult<List<Certificate>>
+    suspend fun getStudentCertificates(studentId: String): NetworkResult<List<Certificate>>
     suspend fun getPendingCertificates(): NetworkResult<List<TutorPendingCert>>
     suspend fun getApprovedCertificates(): NetworkResult<List<Certificate>>
     suspend fun approveCertificate(id: String, points: Int): NetworkResult<Unit>
@@ -40,9 +40,11 @@ class TutorRepositoryImpl @Inject constructor(
     override suspend fun getStudentDetails(id: String) =
         safeApiCall { tutorApi.getStudentDetails(id) }
 
-    override suspend fun getStudentCertificates(id: String): NetworkResult<List<Certificate>> =
-        when (val result = safeApiCall { tutorApi.getStudentCertificates(id) }) {
-            is NetworkResult.Success -> NetworkResult.Success(result.data.certificates)
+    override suspend fun getStudentCertificates(studentId: String): NetworkResult<List<Certificate>> =
+        when (val result = safeApiCall { tutorApi.getApprovedCertificates() }) {
+            is NetworkResult.Success -> NetworkResult.Success(
+                result.data.certificates.filter { it.student?.id == studentId }
+            )
             is NetworkResult.Error   -> result
             is NetworkResult.Loading -> result
         }

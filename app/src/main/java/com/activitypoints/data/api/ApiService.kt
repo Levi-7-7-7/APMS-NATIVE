@@ -92,9 +92,6 @@ interface TutorApi {
     @GET("tutors/students/{id}")
     suspend fun getStudentDetails(@Path("id") id: String): Response<Student>
 
-    @GET("tutors/students/{id}/certificates")
-    suspend fun getStudentCertificates(@Path("id") id: String): Response<CertificatesResponse>
-
     // Pending / Approved
     @GET("tutors/certificates/pending")
     suspend fun getPendingCertificates(): Response<List<TutorPendingCert>>

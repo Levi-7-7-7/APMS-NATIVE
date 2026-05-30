@@ -2,9 +2,11 @@ package com.activitypoints.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -19,15 +21,21 @@ import com.activitypoints.models.Certificate
 import com.activitypoints.models.TutorPendingCert
 import com.activitypoints.models.TutorStudent
 import com.activitypoints.ui.components.*
-import com.activitypoints.viewmodel.AuthState
-import com.activitypoints.viewmodel.AuthViewModel
-import com.activitypoints.viewmodel.TutorViewModel
+import com.activitypoints.viewmodel.*
 import java.io.File
 import java.io.FileOutputStream
 
 // ══════════════════════════════════════════════════════════════════════════════
 // TUTOR STUDENTS
 // ══════════════════════════════════════════════════════════════════════════════
+
+private val SORT_OPTIONS = listOf(
+    StudentSortKey.REGISTER_NUMBER to "Reg. Number",
+    StudentSortKey.NAME            to "Name",
+    StudentSortKey.TOTAL_POINTS    to "Points",
+    StudentSortKey.BATCH           to "Batch",
+    StudentSortKey.BRANCH          to "Branch",
+)
 
 @Composable
 fun TutorStudentsScreen(
@@ -36,16 +44,19 @@ fun TutorStudentsScreen(
     onStudentClick: (String) -> Unit,
     onProfileClick: () -> Unit,
 ) {
-    val uiState  by tutorViewModel.studentsState.collectAsState()
+    val uiState   by tutorViewModel.studentsState.collectAsState()
     val authState by authViewModel.authState.collectAsState()
     val tutorName = (authState as? AuthState.Tutor)?.profile?.name ?: "Tutor"
+
+    var showSortSheet   by remember { mutableStateOf(false) }
+    var showFilterSheet by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
         // Header row
         Row(
-            modifier             = Modifier.fillMaxWidth().padding(16.dp),
+            modifier              = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment    = Alignment.CenterVertically,
+            verticalAlignment     = Alignment.CenterVertically,
         ) {
             Column {
                 Text("Hello, $tutorName", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -57,7 +68,7 @@ fun TutorStudentsScreen(
             }
         }
 
-        // Search
+        // Search bar
         OutlinedTextField(
             value         = uiState.searchQuery,
             onValueChange = tutorViewModel::setStudentSearch,
@@ -68,26 +79,230 @@ fun TutorStudentsScreen(
         )
         Spacer(Modifier.height(8.dp))
 
+        // Sort / Filter / Count toolbar
+        val activeFilterCount = (if (uiState.filterBatch.isNotEmpty()) 1 else 0) +
+                                (if (uiState.filterBranch.isNotEmpty()) 1 else 0)
+        val currentSortLabel  = SORT_OPTIONS.find { it.first == uiState.sortKey }?.second ?: "Sort"
+        val filtered          = tutorViewModel.filteredStudents()
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            // Sort button
+            OutlinedButton(
+                onClick       = { showSortSheet = true },
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+            ) {
+                Icon(Icons.Outlined.Sort, null, Modifier.size(16.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(currentSortLabel, style = MaterialTheme.typography.labelMedium)
+                Spacer(Modifier.width(2.dp))
+                Icon(
+                    imageVector = if (uiState.sortDir == SortDir.ASC) Icons.Outlined.ArrowUpward else Icons.Outlined.ArrowDownward,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                )
+            }
+
+            // Filter button
+            BadgedBox(badge = {
+                if (activeFilterCount > 0) Badge { Text("$activeFilterCount") }
+            }) {
+                OutlinedButton(
+                    onClick       = { showFilterSheet = true },
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                ) {
+                    Icon(Icons.Outlined.FilterList, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Filter", style = MaterialTheme.typography.labelMedium)
+                }
+            }
+
+            Spacer(Modifier.weight(1f))
+            Text(
+                "${filtered.size}/${uiState.students.size}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+
+        // Active filter chips
+        if (activeFilterCount > 0) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (uiState.filterBatch.isNotEmpty()) {
+                    InputChip(
+                        selected  = true,
+                        onClick   = { tutorViewModel.setFilterBatch("") },
+                        label     = { Text("Batch: ${uiState.filterBatch}") },
+                        trailingIcon = { Icon(Icons.Outlined.Close, null, Modifier.size(14.dp)) },
+                    )
+                }
+                if (uiState.filterBranch.isNotEmpty()) {
+                    InputChip(
+                        selected  = true,
+                        onClick   = { tutorViewModel.setFilterBranch("") },
+                        label     = { Text("Branch: ${uiState.filterBranch}") },
+                        trailingIcon = { Icon(Icons.Outlined.Close, null, Modifier.size(14.dp)) },
+                    )
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+        }
+
         PullToRefreshBox(
             isRefreshing = uiState.isRefreshing,
             onRefresh    = { tutorViewModel.loadStudents(isRefresh = true) },
         ) {
             if (uiState.isLoading) {
                 Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    repeat(6) { ShimmerBox(Modifier.fillMaxWidth().height(72.dp)) }
+                    repeat(6) { ShimmerBox(Modifier.fillMaxWidth().height(80.dp)) }
                 }
+            } else if (filtered.isEmpty()) {
+                EmptyState(Icons.Outlined.Group, "No students", "No students match your search.", Modifier.fillMaxSize())
             } else {
-                val filtered = tutorViewModel.filteredStudents()
-                if (filtered.isEmpty()) {
-                    EmptyState(Icons.Outlined.Group, "No students", "No students match your search.", Modifier.fillMaxSize())
-                } else {
-                    LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(filtered, key = { it.id }) { student ->
-                            StudentCard(student, onClick = { onStudentClick(student.id) })
-                        }
+                LazyColumn(
+                    contentPadding      = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(filtered, key = { it.id }) { student ->
+                        StudentCard(student, onClick = { onStudentClick(student.id) })
                     }
                 }
             }
+        }
+    }
+
+    // ── Sort bottom sheet ──────────────────────────────────────────────────────
+    if (showSortSheet) {
+        ModalBottomSheet(onDismissRequest = { showSortSheet = false }) {
+            Text(
+                "Sort students",
+                style      = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier   = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+            )
+            SORT_OPTIONS.forEach { (key, label) ->
+                val isActive = uiState.sortKey == key
+                ListItem(
+                    headlineContent = {
+                        Text(label, fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal)
+                    },
+                    leadingContent = {
+                        RadioButton(selected = isActive, onClick = {
+                            tutorViewModel.setStudentSort(key)
+                            showSortSheet = false
+                        })
+                    },
+                    trailingContent = if (isActive) ({
+                        Icon(
+                            if (uiState.sortDir == SortDir.ASC) Icons.Outlined.ArrowUpward else Icons.Outlined.ArrowDownward,
+                            null,
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }) else null,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors   = if (isActive)
+                        ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+                    else ListItemDefaults.colors(),
+                    tonalElevation = 0.dp,
+                )
+            }
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+
+    // ── Filter bottom sheet ────────────────────────────────────────────────────
+    if (showFilterSheet) {
+        val batches  = tutorViewModel.allBatches()
+        val branches = tutorViewModel.allBranches()
+        ModalBottomSheet(onDismissRequest = { showFilterSheet = false }) {
+            Row(
+                modifier              = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment     = Alignment.CenterVertically,
+            ) {
+                Text("Filter students", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                if (uiState.filterBatch.isNotEmpty() || uiState.filterBranch.isNotEmpty()) {
+                    TextButton(onClick = { tutorViewModel.clearStudentFilters() }) {
+                        Text("Clear all", color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+
+            if (batches.isNotEmpty()) {
+                Text(
+                    "Batch",
+                    style    = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    FilterChip(
+                        selected = uiState.filterBatch.isEmpty(),
+                        onClick  = { tutorViewModel.setFilterBatch("") },
+                        label    = { Text("All") },
+                    )
+                    batches.forEach { batch ->
+                        FilterChip(
+                            selected = uiState.filterBatch == batch,
+                            onClick  = { tutorViewModel.setFilterBatch(if (uiState.filterBatch == batch) "" else batch) },
+                            label    = { Text(batch) },
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+
+            if (branches.isNotEmpty()) {
+                Text(
+                    "Branch",
+                    style    = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    FilterChip(
+                        selected = uiState.filterBranch.isEmpty(),
+                        onClick  = { tutorViewModel.setFilterBranch("") },
+                        label    = { Text("All") },
+                    )
+                    branches.forEach { branch ->
+                        FilterChip(
+                            selected = uiState.filterBranch == branch,
+                            onClick  = { tutorViewModel.setFilterBranch(if (uiState.filterBranch == branch) "" else branch) },
+                            label    = { Text(branch) },
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+
+            Button(
+                onClick  = { showFilterSheet = false },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            ) { Text("Apply") }
+            Spacer(Modifier.height(16.dp))
         }
     }
 }
@@ -95,16 +310,61 @@ fun TutorStudentsScreen(
 @Composable
 private fun StudentCard(student: TutorStudent, onClick: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth(), onClick = onClick) {
-        Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            InitialsAvatar(name = student.name, size = 44)
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(student.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                Text(student.registerNumber, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                InitialsAvatar(name = student.name, size = 44)
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(student.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                    Text(student.registerNumber, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        "${student.totalApprovedPoints}",
+                        style      = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color      = MaterialTheme.colorScheme.primary,
+                    )
+                    Text("pts", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Text("${student.totalApprovedPoints}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                Text("pts", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            // Batch / Branch footer
+            val batchName  = student.batch?.name
+            val branchName = student.branch?.name
+            if (batchName != null || branchName != null || student.isLateralEntry) {
+                Spacer(Modifier.height(8.dp))
+                HorizontalDivider(thickness = 0.5.dp)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    batchName?.let {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Outlined.CalendarToday, null, Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.width(4.dp))
+                            Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    branchName?.let {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Outlined.School, null, Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.width(4.dp))
+                            Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    if (student.isLateralEntry) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            shape = MaterialTheme.shapes.small,
+                        ) {
+                            Text(
+                                "Lateral Entry",
+                                style    = MaterialTheme.typography.labelSmall,
+                                color    = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -316,9 +576,9 @@ fun TutorUploadCsvScreen(tutorViewModel: TutorViewModel) {
 
     Scaffold(snackbarHost = { SnackbarHost(snackbar) }) { padding ->
         Column(
-            modifier            = Modifier.fillMaxSize().padding(padding).padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
+            modifier             = Modifier.fillMaxSize().padding(padding).padding(24.dp),
+            horizontalAlignment  = Alignment.CenterHorizontally,
+            verticalArrangement  = Arrangement.Center,
         ) {
             Icon(Icons.Outlined.TableChart, null, Modifier.size(72.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(16.dp))

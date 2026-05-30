@@ -34,14 +34,14 @@ data class TutorResetPasswordRequest(val email: String, val otp: String, val new
 // ── Student ────────────────────────────────────────────────────────────────────
 
 data class Student(
-    @SerializedName("_id")       val id: String = "",
+    @SerializedName("_id")          val id: String = "",
     val name: String = "",
     val registerNumber: String = "",
     val email: String = "",
     val department: String = "",
     val batch: String = "",
     val isLateralEntry: Boolean = false,
-    val photoUrl: String? = null,
+    @SerializedName("profilePhoto") val photoUrl: String? = null,
     val semester: String? = null,
     val phone: String? = null,
 )
@@ -107,16 +107,17 @@ data class PrizeType(
 // ── Tutor Student (for tutor screens) ─────────────────────────────────────────
 
 data class TutorStudent(
-    @SerializedName("_id") val id: String = "",
+    @SerializedName("_id")          val id: String = "",
     val name: String = "",
     val registerNumber: String = "",
     val email: String = "",
     val batch: BatchBranch? = null,
     val branch: BatchBranch? = null,
     val isLateralEntry: Boolean = false,
-    val photoUrl: String? = null,
+    @SerializedName("profilePhoto") val photoUrl: String? = null,
     val totalPoints: Int = 0,
     val passThreshold: Int = 60,
+    val createdAt: String? = null,
 ) {
     // Convenience so screens don't need to change
     val totalApprovedPoints: Int get() = totalPoints

@@ -2,8 +2,13 @@ package com.activitypoints.di
 
 import com.activitypoints.BuildConfig
 import com.activitypoints.data.api.AuthInterceptor
+import com.activitypoints.data.api.CertificateDeserializer
 import com.activitypoints.data.api.StudentApi
 import com.activitypoints.data.api.TutorApi
+import com.activitypoints.data.api.TutorPendingCertDeserializer
+import com.activitypoints.models.Certificate
+import com.activitypoints.models.TutorPendingCert
+import com.google.gson.GsonBuilder
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -37,11 +42,19 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit =
+    fun provideGson(): com.google.gson.Gson =
+        GsonBuilder()
+            .registerTypeAdapter(Certificate::class.java, CertificateDeserializer())
+            .registerTypeAdapter(TutorPendingCert::class.java, TutorPendingCertDeserializer())
+            .create()
+
+    @Provides
+    @Singleton
+    fun provideRetrofit(okHttpClient: OkHttpClient, gson: com.google.gson.Gson): Retrofit =
         Retrofit.Builder()
             .baseUrl(BuildConfig.BASE_URL)
             .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
 
     @Provides
