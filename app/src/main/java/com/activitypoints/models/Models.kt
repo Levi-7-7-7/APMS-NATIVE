@@ -11,6 +11,8 @@ data class LoginRequest(
 
 data class LoginResponse(
     val token: String,
+    // Login endpoint only returns { name } inside student — full profile
+    // is fetched separately via GET /students/me
     val student: Student?,
 )
 
@@ -32,16 +34,28 @@ data class TutorForgotPasswordRequest(val email: String)
 data class TutorResetPasswordRequest(val email: String, val otp: String, val newPassword: String)
 
 // ── Student ────────────────────────────────────────────────────────────────────
+//
+// IMPORTANT: The backend's GET /students/me populates `batch` and `branch` as
+// nested objects { _id, name }, NOT plain strings.  Gson cannot map a JsonObject
+// into a String field — it throws silently and returns null for the whole object,
+// which is why the name never showed up.
+//
+// The StudentDeserializer (FlexibleDeserializers.kt) extracts the nested `name`
+// from those objects and stores it in `batchName` / `branchName` here.
+//
+// `photoUrl` maps to the backend field `profilePhoto` via StudentDeserializer.
 
 data class Student(
-    @SerializedName("_id")          val id: String = "",
+    @SerializedName("_id") val id: String = "",
     val name: String = "",
     val registerNumber: String = "",
     val email: String = "",
-    val department: String = "",
-    val batch: String = "",
     val isLateralEntry: Boolean = false,
-    @SerializedName("profilePhoto") val photoUrl: String? = null,
+    // Populated from batch.name / branch.name by StudentDeserializer
+    val batchName: String? = null,
+    val branchName: String? = null,
+    // Maps from "profilePhoto" field — handled by StudentDeserializer
+    val photoUrl: String? = null,
     val semester: String? = null,
     val phone: String? = null,
 )
@@ -119,7 +133,6 @@ data class TutorStudent(
     val passThreshold: Int = 60,
     val createdAt: String? = null,
 ) {
-    // Convenience so screens don't need to change
     val totalApprovedPoints: Int get() = totalPoints
 }
 
@@ -174,6 +187,12 @@ data class StudentsResponse(
 data class CertUploadResponse(
     val message: String? = null,
     val certificate: Certificate? = null,
+)
+
+// Photo upload returns { success: true, profilePhoto: "https://..." }
+data class PhotoUploadResponse(
+    val success: Boolean = false,
+    val profilePhoto: String? = null,
 )
 
 // ── Profile ────────────────────────────────────────────────────────────────────

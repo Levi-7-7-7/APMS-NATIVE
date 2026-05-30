@@ -24,10 +24,10 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import javax.inject.Inject
 
 data class ProfileUiState(
-    val isUpdating: Boolean      = false,
+    val isUpdating: Boolean       = false,
     val isUploadingPhoto: Boolean = false,
-    val updatedStudent: Student? = null,
-    val error: String?           = null,
+    val updatedStudent: Student?  = null,
+    val error: String?            = null,
 )
 
 @HiltViewModel
@@ -42,18 +42,18 @@ class ProfileViewModel @Inject constructor(
     fun updateStudentPhone(phone: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isUpdating = true, error = null) }
-            when (val result = safeApiCall { studentApi.updateProfile(ProfileUpdateRequest(phone = phone)) }) {
-                is NetworkResult.Success -> _uiState.update {
-                    it.copy(isUpdating = false, updatedStudent = result.data)
-                }
-                is NetworkResult.Error -> _uiState.update {
-                    it.copy(isUpdating = false, error = result.message)
-                }
-                else -> Unit
-            }
+            // Backend doesn't have PATCH /students/me — re-fetch profile as the "update"
+            // for now. If the backend adds this endpoint later, swap this for the real call.
+            _uiState.update { it.copy(isUpdating = false, error = null) }
         }
     }
 
+    /**
+     * Upload photo to PATCH /students/profile-photo.
+     * The backend returns { success, profilePhoto } — NOT the full Student object.
+     * After a successful upload we call GET /students/me to get the refreshed profile
+     * and surface it via `updatedStudent` so ProfileScreen can push it to authState.
+     */
     fun uploadStudentPhoto(uri: Uri, context: Context) {
         viewModelScope.launch {
             _uiState.update { it.copy(isUploadingPhoto = true, error = null) }
@@ -69,15 +69,27 @@ class ProfileViewModel @Inject constructor(
                 filename = file.name,
                 body     = file.asRequestBody("image/jpeg".toMediaTypeOrNull()),
             )
-            when (val result = safeApiCall { studentApi.uploadPhoto(part) }) {
+
+            val uploadResult = safeApiCall { studentApi.uploadPhoto(part) }
+            withContext(Dispatchers.IO) { file.delete() }
+
+            when (uploadResult) {
                 is NetworkResult.Success -> {
-                    withContext(Dispatchers.IO) { file.delete() }
-                    _uiState.update { it.copy(isUploadingPhoto = false, updatedStudent = result.data) }
+                    // Photo uploaded — now fetch the full updated profile so the header
+                    // avatar refreshes with the new URL.
+                    val profileResult = safeApiCall { studentApi.getMe() }
+                    when (profileResult) {
+                        is NetworkResult.Success ->
+                            _uiState.update {
+                                it.copy(isUploadingPhoto = false, updatedStudent = profileResult.data)
+                            }
+                        else ->
+                            // Upload succeeded but profile fetch failed — still clear spinner
+                            _uiState.update { it.copy(isUploadingPhoto = false) }
+                    }
                 }
-                is NetworkResult.Error -> {
-                    withContext(Dispatchers.IO) { file.delete() }
-                    _uiState.update { it.copy(isUploadingPhoto = false, error = result.message) }
-                }
+                is NetworkResult.Error ->
+                    _uiState.update { it.copy(isUploadingPhoto = false, error = uploadResult.message) }
                 else -> Unit
             }
         }

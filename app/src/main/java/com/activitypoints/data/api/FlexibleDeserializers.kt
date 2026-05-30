@@ -2,22 +2,44 @@ package com.activitypoints.data.api
 
 import com.activitypoints.models.*
 import com.google.gson.*
-import com.google.gson.reflect.TypeToken
 import java.lang.reflect.Type
 
 /**
  * The backend returns some fields as either a full object OR a plain string ID,
- * depending on which endpoint is called:
+ * depending on which endpoint is called.
  *
- *   GET /certificates/my        → certificate.student = "someStringId"  (NOT populated)
- *   GET /tutors/certificates    → certificate.student = { _id, name, … } (populated)
- *   GET /tutors/certificates/pending → same, populated
- *
- * A standard Gson data class can't handle this polymorphism — it throws:
- *   Expected BEGIN_OBJECT but was STRING
+ * Additionally, GET /students/me populates `batch` and `branch` as objects
+ * { _id, name } while the login response returns only { name } for the student.
+ * A standard Gson data class can't handle this polymorphism.
  *
  * These custom deserializers silently handle both cases.
  */
+
+// ── Student ────────────────────────────────────────────────────────────────────
+
+class StudentDeserializer : JsonDeserializer<Student> {
+    override fun deserialize(
+        json: JsonElement,
+        typeOfT: Type,
+        context: JsonDeserializationContext,
+    ): Student {
+        if (json.isJsonNull) return Student()
+        val obj = json.asJsonObject
+        return Student(
+            id             = obj.getStringOrEmpty("_id"),
+            name           = obj.getStringOrEmpty("name"),
+            registerNumber = obj.getStringOrEmpty("registerNumber"),
+            email          = obj.getStringOrEmpty("email"),
+            isLateralEntry = obj.getBoolOrDefault("isLateralEntry", false),
+            // batch and branch can be a populated object { _id, name } or just an ID string
+            batchName      = obj.getNestedNameOrNull("batch"),
+            branchName     = obj.getNestedNameOrNull("branch"),
+            photoUrl       = obj.getStringOrNull("profilePhoto"),
+            phone          = obj.getStringOrNull("phone"),
+            semester       = obj.getStringOrNull("semester"),
+        )
+    }
+}
 
 // ── Certificate ────────────────────────────────────────────────────────────────
 
@@ -43,7 +65,6 @@ class CertificateDeserializer : JsonDeserializer<Certificate> {
             uploadedAt      = obj.getStringOrNull("uploadedAt"),
             rejectionReason = obj.getStringOrNull("rejectionReason"),
             remarks         = obj.getStringOrNull("remarks"),
-            // KEY FIX: student can be a string ID or a full Student object — handle both
             student         = obj.getStudentOrNull("student", context),
         )
     }
@@ -76,42 +97,56 @@ class TutorPendingCertDeserializer : JsonDeserializer<TutorPendingCert> {
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-private fun JsonObject.getStringOrEmpty(key: String, default: String = ""): String {
+internal fun JsonObject.getStringOrEmpty(key: String, default: String = ""): String {
     val el = get(key) ?: return default
-    return if (el.isJsonNull || (el.isJsonPrimitive && el.asString.isNullOrEmpty())) default
-    else if (el.isJsonPrimitive) el.asString else default
+    return if (el.isJsonNull || !el.isJsonPrimitive) default
+    else el.asString.ifEmpty { default }
 }
 
-private fun JsonObject.getStringOrNull(key: String): String? {
+internal fun JsonObject.getStringOrNull(key: String): String? {
     val el = get(key) ?: return null
     return if (el.isJsonNull || !el.isJsonPrimitive) null else el.asString.ifEmpty { null }
 }
 
-private fun JsonObject.getIntOrNull(key: String): Int? {
+internal fun JsonObject.getIntOrNull(key: String): Int? {
     val el = get(key) ?: return null
     return if (el.isJsonNull || !el.isJsonPrimitive) null
     else runCatching { el.asInt }.getOrNull()
 }
 
+internal fun JsonObject.getBoolOrDefault(key: String, default: Boolean): Boolean {
+    val el = get(key) ?: return default
+    return if (el.isJsonNull || !el.isJsonPrimitive) default
+    else runCatching { el.asBoolean }.getOrElse { default }
+}
+
 /**
- * Deserialize a field that might be:
- *   - absent / null → return null
- *   - a plain string (student ID from unpopulated endpoint) → return null (no name info)
- *   - a JSON object (populated student) → deserialize normally
+ * For fields like `batch` / `branch` that the backend populates as { _id, name }.
+ * Returns the `name` string, or null if the field is missing / a plain ID string.
  */
-private fun JsonObject.getStudentOrNull(key: String, context: JsonDeserializationContext): Student? {
+internal fun JsonObject.getNestedNameOrNull(key: String): String? {
     val el = get(key) ?: return null
     if (el.isJsonNull) return null
-    if (el.isJsonPrimitive) return null   // just an ID string — no usable data, return null
+    if (el.isJsonPrimitive) return null  // plain ObjectId string — no name available
+    return runCatching { el.asJsonObject.getStringOrNull("name") }.getOrNull()
+}
+
+/**
+ * Deserialize a field that might be a plain string ID or a full Student object.
+ */
+internal fun JsonObject.getStudentOrNull(key: String, context: JsonDeserializationContext): Student? {
+    val el = get(key) ?: return null
+    if (el.isJsonNull) return null
+    if (el.isJsonPrimitive) return null  // just an ID string
     return runCatching { context.deserialize<Student>(el, Student::class.java) }.getOrNull()
 }
 
 /**
- * Deserialize a field that might be a string (category ID) or a Category object.
+ * Deserialize a field that might be a string ID or a Category object.
  */
-private fun JsonObject.getObjectOrNull(key: String, context: JsonDeserializationContext): Category? {
+internal fun JsonObject.getObjectOrNull(key: String, context: JsonDeserializationContext): Category? {
     val el = get(key) ?: return null
     if (el.isJsonNull) return null
-    if (el.isJsonPrimitive) return null   // just an ID string — no name data available
+    if (el.isJsonPrimitive) return null  // just an ID string
     return runCatching { context.deserialize<Category>(el, Category::class.java) }.getOrNull()
 }

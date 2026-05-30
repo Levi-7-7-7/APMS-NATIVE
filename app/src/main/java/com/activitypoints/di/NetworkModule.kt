@@ -3,10 +3,12 @@ package com.activitypoints.di
 import com.activitypoints.BuildConfig
 import com.activitypoints.data.api.AuthInterceptor
 import com.activitypoints.data.api.CertificateDeserializer
+import com.activitypoints.data.api.StudentDeserializer
 import com.activitypoints.data.api.StudentApi
 import com.activitypoints.data.api.TutorApi
 import com.activitypoints.data.api.TutorPendingCertDeserializer
 import com.activitypoints.models.Certificate
+import com.activitypoints.models.Student
 import com.activitypoints.models.TutorPendingCert
 import com.google.gson.GsonBuilder
 import dagger.Module
@@ -44,6 +46,9 @@ object NetworkModule {
     @Singleton
     fun provideGson(): com.google.gson.Gson =
         GsonBuilder()
+            // Student deserializer handles batch/branch as populated objects { _id, name }
+            // instead of plain strings — this is the root cause of the missing student name.
+            .registerTypeAdapter(Student::class.java, StudentDeserializer())
             .registerTypeAdapter(Certificate::class.java, CertificateDeserializer())
             .registerTypeAdapter(TutorPendingCert::class.java, TutorPendingCertDeserializer())
             .create()

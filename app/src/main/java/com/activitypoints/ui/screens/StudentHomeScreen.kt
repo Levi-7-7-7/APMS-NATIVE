@@ -7,7 +7,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.activitypoints.navigation.Routes
@@ -29,6 +28,11 @@ fun StudentHomeScreen(
     navController: NavController,
     studentViewModel: StudentViewModel = hiltViewModel(),
 ) {
+    // Wire the AuthViewModel so that loadAll() can push profile updates into authState.
+    LaunchedEffect(Unit) {
+        studentViewModel.attachAuthViewModel(authViewModel)
+    }
+
     var selectedTab by remember { mutableIntStateOf(0) }
 
     Scaffold(
@@ -38,9 +42,7 @@ fun StudentHomeScreen(
                     NavigationBarItem(
                         selected = selectedTab == index,
                         onClick  = { selectedTab = index },
-                        icon     = {
-                            Icon(tab.icon, contentDescription = tab.label)
-                        },
+                        icon     = { Icon(tab.icon, contentDescription = tab.label) },
                         label    = { Text(tab.label) },
                     )
                 }
@@ -54,10 +56,10 @@ fun StudentHomeScreen(
         ) {
             when (selectedTab) {
                 0 -> DashboardScreen(
-                    authViewModel   = authViewModel,
+                    authViewModel    = authViewModel,
                     studentViewModel = studentViewModel,
-                    onNavigateToProfile    = { navController.navigate(Routes.STUDENT_PROFILE) },
-                    onNavigateToCerts      = { selectedTab = 1 },
+                    onNavigateToProfile = { navController.navigate(Routes.STUDENT_PROFILE) },
+                    onNavigateToCerts   = { selectedTab = 1 },
                 )
                 1 -> CertificatesScreen(
                     studentViewModel = studentViewModel,

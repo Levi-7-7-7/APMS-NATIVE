@@ -26,16 +26,15 @@ interface StudentApi {
     @POST("auth/reset-password")
     suspend fun resetPassword(@Body request: ResetPasswordRequest): Response<Unit>
 
-    // Profile
+    // Profile — returns the full Student object (batch/branch populated as objects)
     @GET("students/me")
     suspend fun getMe(): Response<Student>
 
-    @PATCH("students/me")
-    suspend fun updateProfile(@Body request: ProfileUpdateRequest): Response<Student>
-
+    // Photo upload — backend route is /students/profile-photo (NOT /students/me/photo)
+    // Response: { success: true, profilePhoto: "https://..." }
     @Multipart
-    @PATCH("students/me/photo")
-    suspend fun uploadPhoto(@Part photo: MultipartBody.Part): Response<Student>
+    @PATCH("students/profile-photo")
+    suspend fun uploadPhoto(@Part photo: MultipartBody.Part): Response<PhotoUploadResponse>
 
     // Certificates
     @GET("certificates/my")
@@ -47,12 +46,12 @@ interface StudentApi {
     @Multipart
     @POST("certificates/upload")
     suspend fun uploadCertificate(
-        @Part("categoryId")     categoryId: RequestBody,
+        @Part("categoryId")      categoryId: RequestBody,
         @Part("subcategoryName") subcategoryName: RequestBody,
-        @Part("eventName")      eventName: RequestBody,
-        @Part("level")          level: RequestBody? = null,
-        @Part("prizeType")      prizeType: RequestBody? = null,
-        @Part("eventDate")      eventDate: RequestBody,
+        @Part("eventName")       eventName: RequestBody,
+        @Part("level")           level: RequestBody? = null,
+        @Part("prizeType")       prizeType: RequestBody? = null,
+        @Part("eventDate")       eventDate: RequestBody,
         @Part file: MultipartBody.Part,
     ): Response<CertUploadResponse>
 

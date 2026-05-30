@@ -21,19 +21,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.activitypoints.data.api.NetworkResult
-import com.activitypoints.data.api.safeApiCall
-import com.activitypoints.data.local.TokenStore
 import com.activitypoints.models.Student
 import com.activitypoints.ui.components.InitialsAvatar
-import com.activitypoints.utils.ImageCompressor
 import com.activitypoints.viewmodel.AuthState
 import com.activitypoints.viewmodel.AuthViewModel
 import com.activitypoints.viewmodel.ProfileViewModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import javax.inject.Inject
 
 @Composable
 fun ProfileScreen(
@@ -41,12 +33,11 @@ fun ProfileScreen(
     navController: NavController,
     profileViewModel: ProfileViewModel = hiltViewModel(),
 ) {
-    val authState  by authViewModel.authState.collectAsState()
-    val uiState    by profileViewModel.uiState.collectAsState()
-    val student    = (authState as? AuthState.Student)?.profile
-    val context    = LocalContext.current
-    val snackbar   = remember { SnackbarHostState() }
-    val scope      = rememberCoroutineScope()
+    val authState by authViewModel.authState.collectAsState()
+    val uiState   by profileViewModel.uiState.collectAsState()
+    val student   = (authState as? AuthState.Student)?.profile
+    val context   = LocalContext.current
+    val snackbar  = remember { SnackbarHostState() }
 
     LaunchedEffect(uiState.error) {
         uiState.error?.let { snackbar.showSnackbar(it) }
@@ -95,18 +86,18 @@ fun ProfileScreen(
             Box(contentAlignment = Alignment.BottomEnd) {
                 if (student?.photoUrl != null) {
                     AsyncImage(
-                        model             = student.photoUrl,
+                        model              = student.photoUrl,
                         contentDescription = "Profile photo",
-                        modifier          = Modifier.size(100.dp).clip(CircleShape),
-                        contentScale      = ContentScale.Crop,
+                        modifier           = Modifier.size(100.dp).clip(CircleShape),
+                        contentScale       = ContentScale.Crop,
                     )
                 } else {
                     InitialsAvatar(name = student?.name ?: "?", size = 100)
                 }
                 SmallFloatingActionButton(
-                    onClick           = { photoLauncher.launch("image/*") },
-                    containerColor    = MaterialTheme.colorScheme.primary,
-                    modifier          = Modifier.size(32.dp),
+                    onClick        = { photoLauncher.launch("image/*") },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    modifier       = Modifier.size(32.dp),
                 ) {
                     if (uiState.isUploadingPhoto) {
                         CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
@@ -117,14 +108,27 @@ fun ProfileScreen(
             }
 
             Spacer(Modifier.height(12.dp))
-            Text(student?.name ?: "", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text(student?.registerNumber ?: "", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            student?.department?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                text      = student?.name ?: "",
+                style     = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text  = student?.registerNumber ?: "",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            // branchName replaces the old `department` field
+            student?.branchName?.let {
+                Text(
+                    text  = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             Spacer(Modifier.height(24.dp))
 
-            // ── Info cards ─────────────────────────────────────────────────────
+            // ── Info card ──────────────────────────────────────────────────────
             ProfileInfoCard(student)
 
             Spacer(Modifier.height(16.dp))
@@ -145,8 +149,11 @@ fun ProfileScreen(
                 modifier = Modifier.fillMaxWidth().height(50.dp),
                 enabled  = !uiState.isUpdating,
             ) {
-                if (uiState.isUpdating) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                else Text("Save Changes", fontWeight = FontWeight.SemiBold)
+                if (uiState.isUpdating) {
+                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                } else {
+                    Text("Save Changes", fontWeight = FontWeight.SemiBold)
+                }
             }
         }
     }
@@ -155,11 +162,17 @@ fun ProfileScreen(
 @Composable
 private fun ProfileInfoCard(student: Student?) {
     Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            ProfileRow(Icons.Outlined.Email, "Email", student?.email)
-            ProfileRow(Icons.Outlined.Apartment, "Department", student?.department)
-            ProfileRow(Icons.Outlined.CalendarViewMonth, "Batch", student?.batch)
-            ProfileRow(Icons.Outlined.School, "Semester", student?.semester)
+        Column(
+            modifier            = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            ProfileRow(Icons.Outlined.Email,              "Email",        student?.email)
+            // `branchName` replaces the old `department` / `branch: String` field
+            ProfileRow(Icons.Outlined.Apartment,          "Branch",       student?.branchName)
+            // `batchName` replaces the old `batch: String` field
+            ProfileRow(Icons.Outlined.CalendarViewMonth,  "Batch",        student?.batchName)
+            ProfileRow(Icons.Outlined.School,             "Semester",     student?.semester)
+            ProfileRow(Icons.Outlined.Phone,              "Phone",        student?.phone)
             if (student?.isLateralEntry == true) {
                 ProfileRow(Icons.Outlined.TransferWithinAStation, "Lateral Entry", "Yes")
             }
@@ -178,8 +191,15 @@ private fun ProfileRow(
         Icon(icon, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.width(10.dp))
         Column {
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(value, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text  = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text  = value,
+                style = MaterialTheme.typography.bodyMedium,
+            )
         }
     }
 }
