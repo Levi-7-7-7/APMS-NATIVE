@@ -26,12 +26,15 @@ interface StudentApi {
     @POST("auth/reset-password")
     suspend fun resetPassword(@Body request: ResetPasswordRequest): Response<Unit>
 
-    // Profile — returns the full Student object (batch/branch populated as objects)
+    // Profile
     @GET("students/me")
     suspend fun getMe(): Response<Student>
 
-    // Photo upload — backend route is /students/profile-photo (NOT /students/me/photo)
-    // Response: { success: true, profilePhoto: "https://..." }
+    // Returns the tutor assigned to this student's batch — used in ProfileScreen
+    @GET("students/my-tutor")
+    suspend fun getMyTutor(): Response<MyTutorResponse>
+
+    // Photo upload
     @Multipart
     @PATCH("students/profile-photo")
     suspend fun uploadPhoto(@Part photo: MultipartBody.Part): Response<PhotoUploadResponse>
@@ -43,6 +46,11 @@ interface StudentApi {
     @DELETE("certificates/{id}")
     suspend fun deleteCertificate(@Path("id") id: String): Response<Unit>
 
+    /**
+     * Upload a certificate.
+     * - dateFrom / dateTo replace the old eventDate field (backend accepts both).
+     * - level and prizeType are optional (only for levelled subcategories).
+     */
     @Multipart
     @POST("certificates/upload")
     suspend fun uploadCertificate(
@@ -51,7 +59,8 @@ interface StudentApi {
         @Part("eventName")       eventName: RequestBody,
         @Part("level")           level: RequestBody? = null,
         @Part("prizeType")       prizeType: RequestBody? = null,
-        @Part("eventDate")       eventDate: RequestBody,
+        @Part("dateFrom")        dateFrom: RequestBody,
+        @Part("dateTo")          dateTo: RequestBody,
         @Part file: MultipartBody.Part,
     ): Response<CertUploadResponse>
 
@@ -109,6 +118,10 @@ interface TutorApi {
         @Path("id") id: String,
         @Body body: Map<String, String>,
     ): Response<Unit>
+
+    /** Revert an approved certificate back to pending — removes pointsAwarded. */
+    @POST("tutors/certificates/{id}/revert-to-pending")
+    suspend fun revertCertificateToPending(@Path("id") id: String): Response<Unit>
 
     // CSV Upload
     @Multipart

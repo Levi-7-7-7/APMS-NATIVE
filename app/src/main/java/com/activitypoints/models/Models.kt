@@ -11,8 +11,6 @@ data class LoginRequest(
 
 data class LoginResponse(
     val token: String,
-    // Login endpoint only returns { name } inside student — full profile
-    // is fetched separately via GET /students/me
     val student: Student?,
 )
 
@@ -36,14 +34,9 @@ data class TutorResetPasswordRequest(val email: String, val otp: String, val new
 // ── Student ────────────────────────────────────────────────────────────────────
 //
 // IMPORTANT: The backend's GET /students/me populates `batch` and `branch` as
-// nested objects { _id, name }, NOT plain strings.  Gson cannot map a JsonObject
-// into a String field — it throws silently and returns null for the whole object,
-// which is why the name never showed up.
-//
-// The StudentDeserializer (FlexibleDeserializers.kt) extracts the nested `name`
-// from those objects and stores it in `batchName` / `branchName` here.
-//
-// `photoUrl` maps to the backend field `profilePhoto` via StudentDeserializer.
+// nested objects { _id, name }, NOT plain strings.  The StudentDeserializer in
+// FlexibleDeserializers.kt extracts the nested `name` from those objects and
+// stores it in `batchName` / `branchName` here.
 
 data class Student(
     @SerializedName("_id") val id: String = "",
@@ -66,8 +59,16 @@ data class Tutor(
     @SerializedName("_id") val id: String = "",
     val name: String = "",
     val email: String = "",
-    val photoUrl: String? = null,
+    @SerializedName("profilePhoto") val photoUrl: String? = null,
     val department: String? = null,
+    // batch/branch come as nested objects from the backend
+    val batch: BatchBranch? = null,
+    val branch: BatchBranch? = null,
+)
+
+// Response for /students/my-tutor
+data class MyTutorResponse(
+    val tutor: Tutor?,
 )
 
 // ── Certificate ────────────────────────────────────────────────────────────────
@@ -83,7 +84,12 @@ data class Certificate(
     val pointsAwarded: Int? = null,
     val potentialPoints: Int? = null,
     val fileUrl: String? = null,
+    // RN app uses dateFrom / dateTo; keep legacy eventDate for compat
+    val dateFrom: String? = null,
+    val dateTo: String? = null,
     val eventDate: String? = null,
+    val createdAt: String? = null,
+    val updatedAt: String? = null,
     val uploadedAt: String? = null,
     val rejectionReason: String? = null,
     val remarks: String? = null,
@@ -102,6 +108,7 @@ data class Category(
 data class Subcategory(
     @SerializedName("_id") val id: String = "",
     val name: String = "",
+    val fixedPoints: Int? = null,
     val levels: List<Level> = emptyList(),
 )
 
@@ -109,6 +116,7 @@ data class Level(
     @SerializedName("_id") val id: String = "",
     val name: String = "",
     val prizeTypes: List<PrizeType> = emptyList(),
+    // Some levels have a direct points value (no prizes)
     val points: Int? = null,
 )
 
@@ -151,7 +159,10 @@ data class TutorPendingCert(
     val status: String = "pending",
     val potentialPoints: Int? = null,
     val fileUrl: String? = null,
+    val dateFrom: String? = null,
+    val dateTo: String? = null,
     val eventDate: String? = null,
+    val createdAt: String? = null,
     val student: Student? = null,
 )
 
@@ -164,7 +175,10 @@ data class TutorApprovedCert(
     val prizeType: String? = null,
     val pointsAwarded: Int? = null,
     val fileUrl: String? = null,
+    val dateFrom: String? = null,
+    val dateTo: String? = null,
     val eventDate: String? = null,
+    val updatedAt: String? = null,
     val student: Student? = null,
 )
 

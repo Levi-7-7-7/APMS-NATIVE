@@ -19,6 +19,7 @@ interface TutorRepository {
     suspend fun getApprovedCertificates(): NetworkResult<List<Certificate>>
     suspend fun approveCertificate(id: String, points: Int): NetworkResult<Unit>
     suspend fun rejectCertificate(id: String, reason: String): NetworkResult<Unit>
+    suspend fun revertCertificateToPending(id: String): NetworkResult<Unit>
     suspend fun uploadCsv(file: File): NetworkResult<Unit>
     suspend fun getTutorProfile(): NetworkResult<Tutor>
     suspend fun uploadTutorPhoto(file: File): NetworkResult<Tutor>
@@ -64,6 +65,9 @@ class TutorRepositoryImpl @Inject constructor(
 
     override suspend fun rejectCertificate(id: String, reason: String) =
         safeApiCall { tutorApi.rejectCertificate(id, mapOf("rejectionReason" to reason)) }
+
+    override suspend fun revertCertificateToPending(id: String) =
+        safeApiCall { tutorApi.revertCertificateToPending(id) }
 
     override suspend fun uploadCsv(file: File): NetworkResult<Unit> {
         val part = MultipartBody.Part.createFormData(

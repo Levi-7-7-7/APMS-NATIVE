@@ -17,7 +17,7 @@ import javax.inject.Inject
 
 // ── Sort / Filter ──────────────────────────────────────────────────────────────
 
-enum class StudentSortKey { REGISTER_NUMBER, NAME, TOTAL_POINTS, BATCH, BRANCH }
+enum class StudentSortKey { REGISTER_NUMBER, NAME, TOTAL_POINTS, BATCH, BRANCH, RECENTLY_ADDED }
 enum class SortDir { ASC, DESC }
 
 // ── State classes ──────────────────────────────────────────────────────────────
@@ -48,6 +48,7 @@ data class TutorApprovedUiState(
     val searchQuery: String      = "",
     val error: String?           = null,
     val isRefreshing: Boolean    = false,
+    val actionResult: String?    = null,
 )
 
 data class StudentDetailUiState(
@@ -103,7 +104,7 @@ class TutorViewModel @Inject constructor(
                 is NetworkResult.Success -> _studentsState.update {
                     it.copy(students = r.data, isLoading = false, isRefreshing = false)
                 }
-                is NetworkResult.Error -> _studentsState.update {
+                is NetworkResult.Error   -> _studentsState.update {
                     it.copy(error = r.message, isLoading = false, isRefreshing = false)
                 }
                 else -> Unit
@@ -112,51 +113,45 @@ class TutorViewModel @Inject constructor(
     }
 
     fun setStudentSearch(q: String) = _studentsState.update { it.copy(searchQuery = q) }
-
     fun setStudentSort(key: StudentSortKey) {
         _studentsState.update { state ->
             val newDir = if (state.sortKey == key) {
                 if (state.sortDir == SortDir.ASC) SortDir.DESC else SortDir.ASC
             } else {
-                when (key) {
-                    StudentSortKey.TOTAL_POINTS -> SortDir.DESC
-                    else                        -> SortDir.ASC
-                }
+                if (key == StudentSortKey.TOTAL_POINTS || key == StudentSortKey.RECENTLY_ADDED)
+                    SortDir.DESC else SortDir.ASC
             }
             state.copy(sortKey = key, sortDir = newDir)
         }
     }
+    fun setStudentFilterBatch(b: String)  = _studentsState.update { it.copy(filterBatch  = b) }
+    fun setStudentFilterBranch(b: String) = _studentsState.update { it.copy(filterBranch = b) }
+    fun clearStudentFilters()             = _studentsState.update { it.copy(filterBatch = "", filterBranch = "") }
 
-    fun setFilterBatch(batch: String)   = _studentsState.update { it.copy(filterBatch = batch) }
-    fun setFilterBranch(branch: String) = _studentsState.update { it.copy(filterBranch = branch) }
-    fun clearStudentFilters() = _studentsState.update { it.copy(filterBatch = "", filterBranch = "") }
-
-    fun filteredStudents(): List<TutorStudent> {
-        val s   = _studentsState.value
-        val q   = s.searchQuery.trim().lowercase()
+    fun filteredSortedStudents(): List<TutorStudent> {
+        val s = _studentsState.value
         var list = s.students
-
-        if (q.isNotEmpty()) {
-            list = list.filter {
-                it.name.lowercase().contains(q) || it.registerNumber.lowercase().contains(q)
-            }
+        if (s.searchQuery.isNotBlank()) {
+            val q = s.searchQuery.lowercase()
+            list = list.filter { it.name.lowercase().contains(q) || it.registerNumber.lowercase().contains(q) }
         }
-        if (s.filterBatch.isNotEmpty())  list = list.filter { it.batch?.name == s.filterBatch }
-        if (s.filterBranch.isNotEmpty()) list = list.filter { it.branch?.name == s.filterBranch }
-
+        if (s.filterBatch.isNotBlank())  list = list.filter { it.batch?.name == s.filterBatch }
+        if (s.filterBranch.isNotBlank()) list = list.filter { it.branch?.name == s.filterBranch }
         val m = if (s.sortDir == SortDir.ASC) 1 else -1
-        list = when (s.sortKey) {
-            StudentSortKey.NAME            -> list.sortedWith(compareBy { it.name.lowercase() })
-            StudentSortKey.REGISTER_NUMBER -> list.sortedWith(compareBy { it.registerNumber.lowercase() })
-            StudentSortKey.TOTAL_POINTS    -> list.sortedWith(compareByDescending { it.totalPoints * m })
-            StudentSortKey.BATCH           -> list.sortedWith(compareBy { it.batch?.name?.lowercase() ?: "" })
-            StudentSortKey.BRANCH          -> list.sortedWith(compareBy { it.branch?.name?.lowercase() ?: "" })
-        }
-        // For non-TOTAL_POINTS keys apply direction after sorting ascending
-        if (s.sortKey != StudentSortKey.TOTAL_POINTS && s.sortDir == SortDir.DESC) {
-            list = list.reversed()
-        }
-        return list
+        return list.sortedWith(Comparator { a, b ->
+            when (s.sortKey) {
+                StudentSortKey.NAME            -> a.name.compareTo(b.name) * m
+                StudentSortKey.TOTAL_POINTS    -> (a.totalPoints - b.totalPoints) * m
+                StudentSortKey.BATCH           -> (a.batch?.name ?: "").compareTo(b.branch?.name ?: "") * m
+                StudentSortKey.BRANCH          -> (a.branch?.name ?: "").compareTo(b.branch?.name ?: "") * m
+                StudentSortKey.RECENTLY_ADDED  -> {
+                    val at = a.createdAt ?: ""
+                    val bt = b.createdAt ?: ""
+                    bt.compareTo(at) * m  // desc by default for recent
+                }
+                else -> a.registerNumber.compareTo(b.registerNumber) * m
+            }
+        })
     }
 
     fun allBatches(): List<String> =
@@ -188,6 +183,7 @@ class TutorViewModel @Inject constructor(
                 is NetworkResult.Success -> {
                     _pendingState.update { it.copy(actionResult = "Approved successfully") }
                     loadPending()
+                    loadApproved()
                 }
                 is NetworkResult.Error -> _pendingState.update { it.copy(actionResult = "Error: ${r.message}") }
                 else -> Unit
@@ -229,13 +225,41 @@ class TutorViewModel @Inject constructor(
 
     fun setApprovedSearch(q: String) = _approvedState.update { it.copy(searchQuery = q) }
 
+    fun filteredApproved(): List<Certificate> {
+        val s = _approvedState.value
+        if (s.searchQuery.isBlank()) return s.certs
+        val q = s.searchQuery.lowercase()
+        return s.certs.filter {
+            it.student?.name?.lowercase()?.contains(q) == true ||
+                    it.student?.registerNumber?.lowercase()?.contains(q) == true
+        }
+    }
+
+    /** Revert an approved certificate back to pending — mirrors RN TutorApprovedScreen. */
+    fun revertCertificate(id: String) {
+        viewModelScope.launch {
+            when (val r = tutorRepo.revertCertificateToPending(id)) {
+                is NetworkResult.Success -> {
+                    _approvedState.update { it.copy(actionResult = "Certificate reverted to pending") }
+                    loadApproved()
+                    loadPending()
+                }
+                is NetworkResult.Error -> _approvedState.update {
+                    it.copy(actionResult = "Error: ${r.message}")
+                }
+                else -> Unit
+            }
+        }
+    }
+
+    fun clearApprovedActionResult() = _approvedState.update { it.copy(actionResult = null) }
+
     // ── Student Details ────────────────────────────────────────────────────────
 
     fun loadStudentDetail(studentId: String) {
         viewModelScope.launch {
             _detailState.update { it.copy(isLoading = true, error = null) }
 
-            // Fetch student info, all approved certs (filter client-side), and categories in parallel
             val studentResult = tutorRepo.getStudentDetails(studentId)
             val certsResult   = tutorRepo.getStudentCertificates(studentId)
             val catsResult    = certRepo.getCategories()
@@ -244,10 +268,7 @@ class TutorViewModel @Inject constructor(
             val certs      = (certsResult   as? NetworkResult.Success)?.data ?: emptyList()
             val categories = (catsResult    as? NetworkResult.Success)?.data ?: emptyList()
 
-            val error = when {
-                studentResult is NetworkResult.Error -> studentResult.message
-                else -> null
-            }
+            val error = (studentResult as? NetworkResult.Error)?.message
 
             _detailState.update {
                 it.copy(
@@ -271,16 +292,12 @@ class TutorViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Compute capped points for the student detail screen.
-     * Uses the full category list (with maxPoints) — matches RN calcCappedPoints exactly.
-     */
     fun detailCappedPoints(): Int {
         val state    = _detailState.value
         val approved = state.certificates.filter { it.status.lowercase() == "approved" }
         return CalcPoints.calcCappedPoints(
-            approvedCerts = approved,
-            categories    = state.categories,
+            approvedCerts  = approved,
+            categories     = state.categories,
             isLateralEntry = state.student?.isLateralEntry ?: false,
         )
     }
