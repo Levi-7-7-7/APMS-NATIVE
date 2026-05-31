@@ -1,6 +1,5 @@
 package com.activitypoints.viewmodel
 
-import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -29,7 +28,6 @@ class UploadViewModel @Inject constructor(
     val uiState: StateFlow<UploadUiState> = _uiState.asStateFlow()
 
     fun upload(
-        context: Context,
         categoryId: String,
         subcategoryName: String,
         eventName: String,
@@ -43,7 +41,6 @@ class UploadViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, error = null, uploadSuccess = false) }
 
             when (val r = certRepo.uploadCertificate(
-                context         = context,
                 categoryId      = categoryId,
                 subcategoryName = subcategoryName,
                 eventName       = eventName,

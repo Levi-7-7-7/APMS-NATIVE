@@ -27,6 +27,11 @@ import com.activitypoints.ui.components.*
 import com.activitypoints.utils.CalcPoints
 import com.activitypoints.viewmodel.TutorViewModel
 
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+
+
 private val CERT_FILTERS = listOf("all", "approved", "pending", "rejected")
 
 @Composable
@@ -82,8 +87,29 @@ fun TutorStudentDetailsScreen(
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            InitialsAvatar(name = student?.name ?: "?", size = 56)
+
+                            Box(
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .clip(CircleShape)
+                            ) {
+                                if (!student?.photoUrl.isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = student?.photoUrl,
+                                        contentDescription = "Student photo",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop,
+                                    )
+                                } else {
+                                    InitialsAvatar(
+                                        name = student?.name ?: "?",
+                                        size = 56
+                                    )
+                                }
+                            }
+
                             Spacer(Modifier.width(14.dp))
+
                             Column(Modifier.weight(1f)) {
                                 Text(
                                     student?.name ?: "",

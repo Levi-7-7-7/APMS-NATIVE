@@ -1,11 +1,11 @@
 package com.activitypoints.data.repository
 
-import android.content.Context
 import com.activitypoints.data.api.NetworkResult
 import com.activitypoints.data.api.StudentApi
 import com.activitypoints.data.api.safeApiCall
 import com.activitypoints.models.*
 import com.activitypoints.utils.ImageCompressor
+
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -19,7 +19,6 @@ interface CertificateRepository {
     suspend fun getCategories(): NetworkResult<List<Category>>
     suspend fun deleteCertificate(id: String): NetworkResult<Unit>
     suspend fun uploadCertificate(
-        context: Context,
         categoryId: String,
         subcategoryName: String,
         eventName: String,
@@ -35,6 +34,7 @@ interface CertificateRepository {
 @Singleton
 class CertificateRepositoryImpl @Inject constructor(
     private val studentApi: StudentApi,
+    private val imageCompressor: ImageCompressor,
 ) : CertificateRepository {
 
     override suspend fun getMyCertificates(): NetworkResult<List<Certificate>> =
@@ -55,7 +55,6 @@ class CertificateRepositoryImpl @Inject constructor(
         safeApiCall { studentApi.deleteCertificate(id) }
 
     override suspend fun uploadCertificate(
-        context: Context,
         categoryId: String,
         subcategoryName: String,
         eventName: String,
@@ -66,7 +65,7 @@ class CertificateRepositoryImpl @Inject constructor(
         fileUri: android.net.Uri,
     ): NetworkResult<CertUploadResponse> {
         // Compress image if needed (≤3 MB)
-        val compressedFile = ImageCompressor.compressFromUri(context, fileUri)
+        val compressedFile = imageCompressor.compress(fileUri)
             ?: return NetworkResult.Error("Could not read the selected file.")
 
         val mimeType = when {

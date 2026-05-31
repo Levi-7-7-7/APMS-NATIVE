@@ -18,7 +18,7 @@ import androidx.navigation.compose.rememberNavController
 import com.activitypoints.ui.screens.*
 import com.activitypoints.viewmodel.AuthState
 import com.activitypoints.viewmodel.AuthViewModel
-
+import com.activitypoints.viewmodel.TutorViewModel
 // ── Route constants ────────────────────────────────────────────────────────────
 
 object Routes {
@@ -147,8 +147,11 @@ fun AppNavGraph(
         }
 
         composable(Routes.TUTOR_PROFILE) {
+            val tutorViewModel: TutorViewModel = hiltViewModel()
+
             TutorProfileScreen(
                 authViewModel = authViewModel,
+                tutorViewModel = tutorViewModel,
                 navController = navController,
             )
         }

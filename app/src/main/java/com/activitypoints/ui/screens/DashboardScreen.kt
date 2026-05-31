@@ -3,7 +3,6 @@ package com.activitypoints.ui.screens
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,6 +24,14 @@ import com.activitypoints.ui.theme.TrophyGold
 import com.activitypoints.viewmodel.AuthState
 import com.activitypoints.viewmodel.AuthViewModel
 import com.activitypoints.viewmodel.StudentViewModel
+
+import androidx.compose.ui.text.style.TextOverflow
+
+import androidx.compose.foundation.background
+import com.activitypoints.ui.theme.ApprovedGreen
+import com.activitypoints.ui.theme.PendingAmber
+import com.activitypoints.ui.theme.RejectedRed
+
 
 @Composable
 fun DashboardScreen(
@@ -283,31 +290,64 @@ fun DashboardScreen(
             }
 
             // ── Loading skeleton ───────────────────────────────────────────────
-            if (uiState.isLoading) {
-                items(3) {
-                    ShimmerBox(modifier = Modifier.fillMaxWidth().height(72.dp))
-                }
-            } else if (uiState.error != null) {
-                item {
-                    ErrorState(
-                        message = uiState.error!!,
-                        onRetry = { studentViewModel.loadAll() },
-                    )
-                }
-            } else if (uiState.certificates.isEmpty()) {
-                item {
-                    EmptyState(
-                        icon     = Icons.Outlined.Inbox,
-                        title    = "No certificates yet",
-                        subtitle = "Upload your activity certificates to get started.",
-                    )
-                }
-            } else {
-                items(
-                    items = uiState.certificates.take(5),
-                    key   = { it.id },
-                ) { cert ->
-                    ActivityRow(cert)
+            item(key = "activities_card") {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    elevation = CardDefaults.cardElevation(3.dp),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(
+                            horizontal = 16.dp,
+                            vertical = 8.dp
+                        )
+                    ) {
+
+                        when {
+                            uiState.isLoading -> {
+                                repeat(3) {
+                                    ShimmerBox(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(60.dp)
+                                            .padding(vertical = 6.dp)
+                                    )
+                                }
+                            }
+
+                            uiState.error != null -> {
+                                ErrorState(
+                                    message = uiState.error!!,
+                                    onRetry = { studentViewModel.loadAll() }
+                                )
+                            }
+
+                            uiState.certificates.isEmpty() -> {
+                                Text(
+                                    text = "No activity yet. Upload your first certificate!",
+                                    modifier = Modifier.padding(16.dp),
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+
+                            else -> {
+                                uiState.certificates
+                                    .take(5)
+                                    .forEach { cert ->
+                                        ActivityRow(cert)
+                                    }
+
+                                if (uiState.certificates.size > 5) {
+                                    TextButton(
+                                        onClick = onNavigateToCerts,
+                                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                                    ) {
+                                        Text("View All Certificates")
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -343,45 +383,95 @@ private fun SummaryChip(label: String, count: Int, color: androidx.compose.ui.gr
 }
 
 // ── Activity row ───────────────────────────────────────────────────────────────
-
 @Composable
 private fun ActivityRow(cert: Certificate) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    val dotColor = when (cert.status.lowercase()) {
+        "approved" -> ApprovedGreen
+        "pending"  -> PendingAmber
+        "rejected" -> RejectedRed
+        else       -> MaterialTheme.colorScheme.primary
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier          = Modifier.padding(14.dp).fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text       = cert.eventName ?: cert.subcategory ?: "Certificate",
-                    style      = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    maxLines   = 1,
-                )
-                cert.category?.name?.let {
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .background(dotColor, CircleShape),
+        )
+
+        Spacer(Modifier.width(10.dp))
+
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = cert.eventName ?: cert.subcategory ?: "Certificate",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+
+            cert.createdAt?.let { dateValue ->
+                val formattedDate = try {
+                    val iso = java.text.SimpleDateFormat(
+                        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+                        java.util.Locale.getDefault()
+                    )
+                    iso.timeZone = java.util.TimeZone.getTimeZone("UTC")
+
+                    val display = java.text.SimpleDateFormat(
+                        "dd MMM yyyy",
+                        java.util.Locale.getDefault()
+                    )
+
+                    display.format(iso.parse(dateValue)!!)
+                } catch (_: Exception) {
+                    dateValue
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                ) {
+                    Icon(
+                        Icons.Outlined.CalendarMonth,
+                        null,
+                        Modifier.size(13.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
                     Text(
-                        text  = it,
+                        text = formattedDate,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
-            Spacer(Modifier.width(8.dp))
-            Column(horizontalAlignment = Alignment.End) {
-                StatusBadge(cert.status)
-                val pts = if (cert.status.lowercase() == "approved") cert.pointsAwarded else cert.potentialPoints
-                if (pts != null) {
-                    Text(
-                        text       = "+$pts pts",
-                        style      = MaterialTheme.typography.labelSmall,
-                        color      = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-            }
         }
+
+        val pts =
+            if (cert.status.lowercase() == "approved")
+                cert.pointsAwarded
+            else
+                null
+
+        Text(
+            text = if (pts != null)
+                "+$pts pts"
+            else
+                cert.status.replaceFirstChar { it.uppercase() },
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = dotColor,
+        )
     }
+
+    HorizontalDivider(
+        thickness = 0.5.dp,
+        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+    )
 }

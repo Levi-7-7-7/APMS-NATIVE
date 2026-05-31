@@ -491,7 +491,6 @@ fun UploadCertificateScreen(
                 val dtStr  = if (isDurationEvent && dateTo != null) isoFormat.format(dateTo!!) else dfStr
 
                 uploadViewModel.upload(
-                    context         = context,
                     categoryId      = catId,
                     subcategoryName = subName,
                     eventName       = eventName.trim(),

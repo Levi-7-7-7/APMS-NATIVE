@@ -395,7 +395,7 @@ fun TutorPendingScreen(tutorViewModel: TutorViewModel) {
                     repeat(4) { ShimmerBox(Modifier.fillMaxWidth().height(160.dp)) }
                 }
             } else if (uiState.certs.isEmpty()) {
-                EmptyState(Icons.Outlined.CheckDecagram, "All caught up!", "No pending certificates.", Modifier.fillMaxSize())
+                EmptyState(Icons.Outlined.CheckCircle, "All caught up!", "No pending certificates.", Modifier.fillMaxSize())
             } else {
                 LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     items(uiState.certs, key = { it.id }) { cert ->
